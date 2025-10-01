@@ -76,7 +76,7 @@ app.post("/send", upload.fields([
               ? `${randomName}: ${originalMsg}${zeroWidth}`
               : `${originalMsg} - ${randomName}${zeroWidth}`;
 
-          const selectedImage = (!isSafeMode && imagePaths.length > 0) ? imagePaths[imageIndex] : null;
+          const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
           const messagePayload = selectedImage
             ? { body: msg, attachment: fs.createReadStream(selectedImage) }
             : msg;
