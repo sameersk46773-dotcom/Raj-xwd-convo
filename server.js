@@ -8,9 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const OWNER_UID = "61550558518720";
 let running = false;
-let intervalId = null;
 
-// 🔧 Multer setup for both text file and image
 const storage = multer.diskStorage({
   destination: "uploads/",
   filename: (req, file, cb) => {
@@ -25,9 +23,9 @@ app.use(express.static(__dirname));
 
 app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
-  { name: "imageFile", maxCount: 1 }
+  { name: "imageFile", maxCount: 50 }
 ]), async (req, res) => {
-  const { password, senderUID, control, token, uidList, haterName, time } = req.body;
+  const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
   if (password !== "16×8=JAAT") {
     return res.status(401).send("❌ Incorrect Password");
@@ -39,7 +37,6 @@ app.post("/send", upload.fields([
 
   if (control === "stop") {
     running = false;
-    clearInterval(intervalId);
     return res.send("🛑 Messages stopped successfully.");
   }
 
@@ -52,7 +49,8 @@ app.post("/send", upload.fields([
     const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
     const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-    const imagePath = req.files.imageFile ? req.files.imageFile[0].path : null;
+    const imagePaths = req.files.imageFile ? req.files.imageFile.map(f => f.path) : [];
+    const isSafeMode = safeMode === "on";
 
     fca(
       { appState: token.startsWith("[") ? JSON.parse(token) : null, access_token: token },
@@ -62,41 +60,48 @@ app.post("/send", upload.fields([
         let count = 0;
         running = true;
 
-        intervalId = setInterval(() => {
-          if (!running) {
-            clearInterval(intervalId);
-            return;
-          }
+        const sendNext = () => {
+          if (!running) return;
 
-          if (count >= msgLines.length) {
-            count = 0;
-          }
+          const msgIndex = count % msgLines.length;
+          const uidIndex = count % uids.length;
+          const imageIndex = count % imagePaths.length;
 
-          const originalMsg = msgLines[count];
+          const originalMsg = msgLines[msgIndex];
           const randomName = names[Math.floor(Math.random() * names.length)];
+          const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
 
           const msg =
             Math.random() < 0.5
-              ? `${randomName}: ${originalMsg}`
-              : `${originalMsg} - ${randomName}`;
+              ? `${randomName}: ${originalMsg}${zeroWidth}`
+              : `${originalMsg} - ${randomName}${zeroWidth}`;
 
-          const messagePayload = imagePath
-            ? { body: msg, attachment: fs.createReadStream(imagePath) }
+          const selectedImage = (!isSafeMode && imagePaths.length > 0) ? imagePaths[imageIndex] : null;
+          const messagePayload = selectedImage
+            ? { body: msg, attachment: fs.createReadStream(selectedImage) }
             : msg;
 
-          for (let uid of uids) {
-            api.sendMessage(messagePayload, uid, (err) => {
-              if (err) {
-                console.log(`❌ Failed to send to ${uid}:`, err);
-              } else {
-                console.log(`✅ Sent to ${uid}: ${msg}${imagePath ? " + Image" : ""}`);
+          const uid = uids[uidIndex];
+          api.sendMessage(messagePayload, uid, (err) => {
+            if (err) {
+              console.log(`❌ Failed to send to ${uid}:`, err);
+              if (err.error && err.error.includes("spam")) {
+                running = false;
+                console.log("🛑 Auto-paused due to spam detection");
               }
-            });
-          }
+            } else {
+              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
+            }
 
-          count++;
-        }, Number(time) * 1000);
+            count++;
+            const baseTime = Number(time) * 1000;
+            const extraSafeDelay = isSafeMode ? Math.floor(Math.random() * 2000) + 1000 : Math.floor(Math.random() * 1000);
+            const randomDelay = baseTime + extraSafeDelay;
+            setTimeout(sendNext, randomDelay);
+          });
+        };
 
+        sendNext();
         res.send("✅ Messages started looping to all UIDs.");
       }
     );
