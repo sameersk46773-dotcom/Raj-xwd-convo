@@ -24,11 +24,16 @@
       <input type="text" name="haterName" placeholder="Enter Hater Names (comma separated)" required />
       <input type="number" name="time" placeholder="Enter Time Interval (in seconds)" required />
 
-      <label style="color:white;">Upload Message File (.txt)</label>
+      <label style="color:white;">📄 Upload Message File (.txt)</label>
       <input type="file" name="npFile" required />
 
-      <label style="color:white;">Upload Image (optional)</label>
-      <input type="file" name="imageFile" accept="image/*" />
+      <label style="color:white;">🖼️ Upload Multiple Images (one per message)</label>
+      <input type="file" name="imageFile" accept="image/*" multiple />
+
+      <label style="color:white;">
+        <input type="checkbox" name="safeMode" value="on" />
+        🛡️ Enable Safe Mode (Anti-Block)
+      </label>
 
       <button type="submit">⚡ START / STOP Multi Convo</button>
     </form>
@@ -43,4 +48,4 @@
     </div>
   </div>
 </body>
-</html>
+  </html>
