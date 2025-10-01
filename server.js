@@ -6,91 +6,105 @@ const bodyParser = require("body-parser");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const upload = multer({ dest: "uploads/" });
-
 const OWNER_UID = "61550558518720";
 let running = false;
 let intervalId = null;
+
+// 🔧 Multer setup for both text file and image
+const storage = multer.diskStorage({
+  destination: "uploads/",
+  filename: (req, file, cb) => {
+    cb(null, Date.now() + "-" + file.originalname);
+  }
+});
+const upload = multer({ storage });
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 app.use(express.static(__dirname));
 
-app.post("/send", upload.single("npFile"), async (req, res) => {
-    const { password, senderUID, control, token, uidList, haterName, time } = req.body;
+app.post("/send", upload.fields([
+  { name: "npFile", maxCount: 1 },
+  { name: "imageFile", maxCount: 1 }
+]), async (req, res) => {
+  const { password, senderUID, control, token, uidList, haterName, time } = req.body;
 
-    if (password !== "16×8=JAAT") {
-        return res.status(401).send("❌ Incorrect Password");
+  if (password !== "16×8=JAAT") {
+    return res.status(401).send("❌ Incorrect Password");
+  }
+
+  if (senderUID !== OWNER_UID) {
+    return res.status(403).send("❌ Only Owner UID can control the convo");
+  }
+
+  if (control === "stop") {
+    running = false;
+    clearInterval(intervalId);
+    return res.send("🛑 Messages stopped successfully.");
+  }
+
+  if (control === "start") {
+    if (!token || !uidList || !haterName || !req.files.npFile || !time) {
+      return res.status(400).send("❗ Missing required fields");
     }
 
-    if (senderUID !== OWNER_UID) {
-        return res.status(403).send("❌ Only Owner UID can control the convo");
-    }
+    const fca = require("fca-smart-shankar");
+    const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
+    const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+    const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+    const imagePath = req.files.imageFile ? req.files.imageFile[0].path : null;
 
-    if (control === "stop") {
-        running = false;
-        clearInterval(intervalId);
-        return res.send("🛑 Messages stopped successfully.");
-    }
+    fca(
+      { appState: token.startsWith("[") ? JSON.parse(token) : null, access_token: token },
+      (err, api) => {
+        if (err) return res.send("Facebook Login Failed ❌: " + (err.error || err));
 
-    if (control === "start") {
-        if (!token || !uidList || !haterName || !req.file || !time) {
-            return res.status(400).send("❗ Missing required fields");
-        }
+        let count = 0;
+        running = true;
 
-        const fca = require("fca-smart-shankar");
-        const msgLines = fs.readFileSync(req.file.path, "utf-8").split("\n").filter(Boolean);
-        const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-        const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+        intervalId = setInterval(() => {
+          if (!running) {
+            clearInterval(intervalId);
+            return;
+          }
 
-        fca(
-            { appState: token.startsWith("[") ? JSON.parse(token) : null, access_token: token },
-            (err, api) => {
-                if (err) return res.send("Facebook Login Failed ❌: " + (err.error || err));
+          if (count >= msgLines.length) {
+            count = 0;
+          }
 
-                let count = 0;
-                running = true;
+          const originalMsg = msgLines[count];
+          const randomName = names[Math.floor(Math.random() * names.length)];
 
-                intervalId = setInterval(() => {
-                    if (!running) {
-                        clearInterval(intervalId);
-                        return;
-                    }
+          const msg =
+            Math.random() < 0.5
+              ? `${randomName}: ${originalMsg}`
+              : `${originalMsg} - ${randomName}`;
 
-                    if (count >= msgLines.length) {
-                        count = 0;
-                    }
+          const messagePayload = imagePath
+            ? { body: msg, attachment: fs.createReadStream(imagePath) }
+            : msg;
 
-                    const originalMsg = msgLines[count];
-                    const randomName = names[Math.floor(Math.random() * names.length)];
+          for (let uid of uids) {
+            api.sendMessage(messagePayload, uid, (err) => {
+              if (err) {
+                console.log(`❌ Failed to send to ${uid}:`, err);
+              } else {
+                console.log(`✅ Sent to ${uid}: ${msg}${imagePath ? " + Image" : ""}`);
+              }
+            });
+          }
 
-                    // 🔀 Random placement
-                    const msg =
-                        Math.random() < 0.5
-                            ? `${randomName}: ${originalMsg}`
-                            : `${originalMsg} - ${randomName}`;
+          count++;
+        }, Number(time) * 1000);
 
-                    for (let uid of uids) {
-                        api.sendMessage(msg, uid, (err) => {
-                            if (err) {
-                                console.log(`❌ Failed to send to ${uid}:`, err);
-                            } else {
-                                console.log(`✅ Sent to ${uid}: ${msg}`);
-                            }
-                        });
-                    }
-
-                    count++;
-                }, Number(time) * 1000);
-
-                res.send("✅ Messages started looping to all UIDs.");
-            }
-        );
-    } else {
-        res.status(400).send("❗ Invalid control option");
-    }
+        res.send("✅ Messages started looping to all UIDs.");
+      }
+    );
+  } else {
+    res.status(400).send("❗ Invalid control option");
+  }
 });
 
 app.listen(PORT, () => {
-    console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
+  console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
 });
