@@ -23,17 +23,12 @@ app.use(express.static(__dirname));
 
 app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
-  { name: "imageFile", maxCount: 50 }
+  { name: "imageFile", maxCount: 200 } // Increased image limit
 ]), async (req, res) => {
   const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
-  if (password !== "16×8=JAAT") {
-    return res.status(401).send("❌ Incorrect Password");
-  }
-
-  if (senderUID !== OWNER_UID) {
-    return res.status(403).send("❌ Only Owner UID can control the convo");
-  }
+  if (password !== "16×8=JAAT") return res.status(401).send("❌ Incorrect Password");
+  if (senderUID !== OWNER_UID) return res.status(403).send("❌ Only Owner UID can control the convo");
 
   if (control === "stop") {
     running = false;
@@ -59,9 +54,23 @@ app.post("/send", upload.fields([
 
         let count = 0;
         running = true;
+        let cycleStart = Date.now();
+        const cycleDuration = 3 * 60 * 60 * 1000; // 3 hours
+        const restDuration = 5 * 60 * 1000; // 5 minutes
 
         const sendNext = () => {
           if (!running) return;
+
+          if (Date.now() - cycleStart >= cycleDuration) {
+            console.log("🛑 3 hour blast complete. Resting for 5 minutes...");
+            running = false;
+            setTimeout(() => {
+              cycleStart = Date.now();
+              running = true;
+              sendNext();
+            }, restDuration);
+            return;
+          }
 
           const msgIndex = count % msgLines.length;
           const uidIndex = count % uids.length;
@@ -102,7 +111,7 @@ app.post("/send", upload.fields([
         };
 
         sendNext();
-        res.send("✅ Messages started looping to all UIDs.");
+        res.send("✅ Messages started looping with auto-cycle logic.");
       }
     );
   } else {
@@ -111,5 +120,5 @@ app.post("/send", upload.fields([
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
+  console.log(`✅ RUDRA AUTO-CYCLE PANEL running at PORT ${PORT}`);
 });
