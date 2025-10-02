@@ -23,7 +23,7 @@ app.use(express.static(__dirname));
 
 app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
-  { name: "imageFile", maxCount: 50 } // ✅ Limited to 50 images
+  { name: "imageFile", maxCount: 50 }
 ]), async (req, res) => {
   const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
@@ -44,7 +44,9 @@ app.post("/send", upload.fields([
     const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
     const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-    const imagePaths = req.files.imageFile ? req.files.imageFile.map(f => f.path) : [];
+    const imagePaths = Array.isArray(req.files.imageFile)
+      ? req.files.imageFile.map(f => f.path)
+      : [];
     const isSafeMode = safeMode === "on";
 
     fca(
@@ -93,13 +95,17 @@ app.post("/send", upload.fields([
               : `${originalMsg} - ${randomName}${zeroWidth} ${emoji}`;
 
           const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
-          const messagePayload = selectedImage
+          const imageExists = selectedImage && fs.existsSync(selectedImage);
+
+          const messagePayload = imageExists
             ? { body: msg, attachment: fs.createReadStream(selectedImage) }
             : msg;
 
           const uid = uids[uidIndex];
           console.log("Sending to UID:", uid);
           console.log("Message:", msg);
+          console.log("Selected Image:", selectedImage);
+          console.log("Exists:", imageExists);
 
           api.sendMessage(messagePayload, uid, (err) => {
             if (err) {
@@ -109,7 +115,7 @@ app.post("/send", upload.fields([
                 console.log("🛑 Auto-paused due to spam detection");
               }
             } else {
-              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
+              console.log(`✅ Sent to ${uid}: ${msg}${imageExists ? " + Image" : ""}`);
             }
 
             count++;
