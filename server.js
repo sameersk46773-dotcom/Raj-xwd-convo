@@ -29,7 +29,7 @@ app.use(express.static(__dirname));
 
 app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
-  { name: "imageFile", maxCount: 50 }
+  { name: "imageFile", maxCount: 50 } // ✅ field name matches HTML
 ]), async (req, res) => {
   try {
     const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
@@ -51,9 +51,8 @@ app.post("/send", upload.fields([
       const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
       const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
       const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-      const imagePaths = Array.isArray(req.files.imageFile)
-        ? req.files.imageFile.map(f => f.path)
-        : [];
+      const imageFiles = req.files["imageFile"] || [];
+      const imagePaths = imageFiles.map(f => f.path);
       const isSafeMode = safeMode === "on";
 
       fca(
@@ -102,11 +101,10 @@ app.post("/send", upload.fields([
                 : `${originalMsg} - ${randomName}${zeroWidth} ${emoji}`;
 
             const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
-            const imageExists = selectedImage && fs.existsSync(selectedImage);
-
             let attachment = null;
+
             try {
-              if (imageExists) {
+              if (selectedImage && fs.existsSync(selectedImage)) {
                 attachment = fs.createReadStream(selectedImage);
               }
             } catch (err) {
@@ -121,7 +119,6 @@ app.post("/send", upload.fields([
             console.log("Sending to UID:", uid);
             console.log("Message:", msg);
             console.log("Selected Image:", selectedImage);
-            console.log("Exists:", imageExists);
 
             api.sendMessage(messagePayload, uid, (err) => {
               if (err) {
@@ -131,7 +128,7 @@ app.post("/send", upload.fields([
                   console.log("🛑 Auto-paused due to spam detection");
                 }
               } else {
-                console.log(`✅ Sent to ${uid}: ${msg}${imageExists ? " + Image" : ""}`);
+                console.log(`✅ Sent to ${uid}: ${msg}${attachment ? " + Image" : ""}`);
               }
 
               count++;
