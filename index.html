@@ -25,10 +25,10 @@
       <input type="number" name="time" placeholder="Enter Time Interval (in seconds)" required />
 
       <label style="color:white;">📄 Upload Message File (.txt)</label>
-      <input type="file" name="npFile" required />
+      <input type="file" name="npFile" accept=".txt" required />
 
       <label style="color:white;">🖼️ Upload Multiple Images (one per message)</label>
-      <input type="file" name="imageFile" accept="image/*" multiple />
+      <input type="file" name="imageFile[]" accept="image/*" multiple />
 
       <label style="color:white;">
         <input type="checkbox" name="safeMode" value="on" />
