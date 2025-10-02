@@ -23,7 +23,7 @@ app.use(express.static(__dirname));
 
 app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
-  { name: "imageFile", maxCount: 200 } // Increased image limit
+  { name: "imageFile", maxCount: 200 }
 ]), async (req, res) => {
   const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
@@ -55,20 +55,23 @@ app.post("/send", upload.fields([
         let count = 0;
         running = true;
         let cycleStart = Date.now();
-        const cycleDuration = 3 * 60 * 60 * 1000; // 3 hours
-        const restDuration = 5 * 60 * 1000; // 5 minutes
+        const cycleDuration = 3 * 60 * 60 * 1000;
+        const restDuration = 5 * 60 * 1000;
 
         const sendNext = () => {
           if (!running) return;
 
           if (Date.now() - cycleStart >= cycleDuration) {
-            console.log("🛑 3 hour blast complete. Resting for 5 minutes...");
+            console.log(`🛑 Blast Cycle Complete at ${new Date().toLocaleTimeString()}`);
             running = false;
+
             setTimeout(() => {
+              console.log(`🔁 Resuming Blast Cycle at ${new Date().toLocaleTimeString()}`);
               cycleStart = Date.now();
               running = true;
               sendNext();
             }, restDuration);
+
             return;
           }
 
@@ -79,11 +82,12 @@ app.post("/send", upload.fields([
           const originalMsg = msgLines[msgIndex];
           const randomName = names[Math.floor(Math.random() * names.length)];
           const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
+          const emoji = Math.random() < 0.3 ? "🔥" : "";
 
           const msg =
             Math.random() < 0.5
-              ? `${randomName}: ${originalMsg}${zeroWidth}`
-              : `${originalMsg} - ${randomName}${zeroWidth}`;
+              ? `${randomName}: ${originalMsg}${zeroWidth} ${emoji}`
+              : `${originalMsg} - ${randomName}${zeroWidth} ${emoji}`;
 
           const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
           const messagePayload = selectedImage
@@ -104,14 +108,16 @@ app.post("/send", upload.fields([
 
             count++;
             const baseTime = Number(time) * 1000;
-            const extraSafeDelay = isSafeMode ? Math.floor(Math.random() * 2000) + 1000 : Math.floor(Math.random() * 1000);
+            const extraSafeDelay = isSafeMode
+              ? Math.floor(Math.random() * 2000) + 1000
+              : Math.floor(Math.random() * 1000);
             const randomDelay = baseTime + extraSafeDelay;
             setTimeout(sendNext, randomDelay);
           });
         };
 
         sendNext();
-        res.send("✅ Messages started looping with auto-cycle logic.");
+        res.send("✅ Messages started looping with unstoppable auto-cycle logic.");
       }
     );
   } else {
