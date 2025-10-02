@@ -10,13 +10,9 @@ const OWNER_UID = "61550558518720";
 let running = false;
 let intervalId = null;
 
-// 🔧 Ensure uploads folder exists
 const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) {
-  fs.mkdirSync(uploadDir);
-}
+if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
-// 🔧 Multer setup for text + multiple images
 const storage = multer.diskStorage({
   destination: uploadDir,
   filename: (req, file, cb) => {
@@ -31,7 +27,7 @@ app.use(express.static(__dirname));
 
 app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
-  { name: "imageFile", maxCount: 50 } // ✅ Allow multiple images
+  { name: "imageFile", maxCount: 50 }
 ]), async (req, res) => {
   try {
     const { password, senderUID, control, token, uidList, haterName, time } = req.body;
@@ -71,16 +67,13 @@ app.post("/send", upload.fields([
               return;
             }
 
-            if (count >= msgLines.length) {
-              count = 0;
-            }
+            if (count >= msgLines.length) count = 0;
 
             const originalMsg = msgLines[count];
             const randomName = names[Math.floor(Math.random() * names.length)];
-            const msg =
-              Math.random() < 0.5
-                ? `${randomName}: ${originalMsg}`
-                : `${originalMsg} - ${randomName}`;
+            const msg = Math.random() < 0.5
+              ? `${randomName}: ${originalMsg}`
+              : `${originalMsg} - ${randomName}`;
 
             const imageIndex = count % imagePaths.length;
             let attachment = null;
@@ -95,16 +88,18 @@ app.post("/send", upload.fields([
 
             const messagePayload = attachment
               ? { body: msg, attachment }
-              : msg;
+              : { body: msg };
 
             for (let uid of uids) {
-              api.sendMessage(messagePayload, uid, (err) => {
-                if (err) {
-                  console.log(`❌ Failed to send to ${uid}:`, err);
-                } else {
-                  console.log(`✅ Sent to ${uid}: ${msg}${attachment ? " + Image" : ""}`);
-                }
-              });
+              setTimeout(() => {
+                api.sendMessage(messagePayload, uid, (err) => {
+                  if (err) {
+                    console.log(`❌ Failed to send to ${uid}:`, err);
+                  } else {
+                    console.log(`✅ Sent to ${uid}: ${msg}${attachment ? " + Image" : ""}`);
+                  }
+                });
+              }, Math.floor(Math.random() * 500)); // slight random delay per UID
             }
 
             count++;
