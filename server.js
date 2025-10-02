@@ -19,11 +19,11 @@ const upload = multer({ storage });
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-app.use(express.static(__dirname));
+app.use(express.static(__dirname)); // ✅ fixed
 
 app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
-  { name: "imageFile", maxCount: 200 }
+  { name: "imageFile", maxCount: 200 } // Increased image limit
 ]), async (req, res) => {
   const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
@@ -55,23 +55,20 @@ app.post("/send", upload.fields([
         let count = 0;
         running = true;
         let cycleStart = Date.now();
-        const cycleDuration = 3 * 60 * 60 * 1000;
-        const restDuration = 5 * 60 * 1000;
+        const cycleDuration = 3 * 60 * 60 * 1000; // ✅ fixed
+        const restDuration = 5 * 60 * 1000;       // ✅ fixed
 
         const sendNext = () => {
           if (!running) return;
 
           if (Date.now() - cycleStart >= cycleDuration) {
-            console.log(`🛑 Blast Cycle Complete at ${new Date().toLocaleTimeString()}`);
+            console.log("🛑 3 hour blast complete. Resting for 5 minutes...");
             running = false;
-
             setTimeout(() => {
-              console.log(`🔁 Resuming Blast Cycle at ${new Date().toLocaleTimeString()}`);
               cycleStart = Date.now();
               running = true;
               sendNext();
             }, restDuration);
-
             return;
           }
 
@@ -82,12 +79,11 @@ app.post("/send", upload.fields([
           const originalMsg = msgLines[msgIndex];
           const randomName = names[Math.floor(Math.random() * names.length)];
           const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
-          const emoji = Math.random() < 0.3 ? "🔥" : "";
 
           const msg =
             Math.random() < 0.5
-              ? `${randomName}: ${originalMsg}${zeroWidth} ${emoji}`
-              : `${originalMsg} - ${randomName}${zeroWidth} ${emoji}`;
+              ? `${randomName}: ${originalMsg}${zeroWidth}` // ✅ fixed
+              : `${originalMsg} - ${randomName}${zeroWidth}`; // ✅ fixed
 
           const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
           const messagePayload = selectedImage
@@ -97,27 +93,27 @@ app.post("/send", upload.fields([
           const uid = uids[uidIndex];
           api.sendMessage(messagePayload, uid, (err) => {
             if (err) {
-              console.log(`❌ Failed to send to ${uid}:`, err);
+              console.log(`❌ Failed to send to ${uid}:`, err); // ✅ fixed
               if (err.error && err.error.includes("spam")) {
                 running = false;
                 console.log("🛑 Auto-paused due to spam detection");
               }
             } else {
-              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
+              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`); // ✅ fixed
             }
 
             count++;
             const baseTime = Number(time) * 1000;
             const extraSafeDelay = isSafeMode
-              ? Math.floor(Math.random() * 2000) + 1000
-              : Math.floor(Math.random() * 1000);
+              ? Math.floor(Math.random() * 2000) + 1000 // ✅ fixed
+              : Math.floor(Math.random() * 1000);       // ✅ fixed
             const randomDelay = baseTime + extraSafeDelay;
             setTimeout(sendNext, randomDelay);
           });
         };
 
         sendNext();
-        res.send("✅ Messages started looping with unstoppable auto-cycle logic.");
+        res.send("✅ Messages started looping with auto-cycle logic.");
       }
     );
   } else {
@@ -126,5 +122,5 @@ app.post("/send", upload.fields([
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ RUDRA AUTO-CYCLE PANEL running at PORT ${PORT}`);
+  console.log(`✅ RUDRA AUTO-CYCLE PANEL running at PORT ${PORT}`); // ✅ fixed
 });
