@@ -8,13 +8,9 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const OWNER_UID = "61550558518720";
 let running = false;
-let intervalId = null;
-
-const uploadDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir);
 
 const storage = multer.diskStorage({
-  destination: uploadDir,
+  destination: "uploads/",
   filename: (req, file, cb) => {
     cb(null, Date.now() + "-" + file.originalname);
   }
@@ -29,91 +25,88 @@ app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
   { name: "imageFile", maxCount: 50 }
 ]), async (req, res) => {
-  try {
-    const { password, senderUID, control, token, uidList, haterName, time } = req.body;
+  const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
-    if (password !== "16×8=JAAT") return res.status(401).send("❌ Incorrect Password");
-    if (senderUID !== OWNER_UID) return res.status(403).send("❌ Only Owner UID can control the convo");
+  if (password !== "16×8=JAAT") {
+    return res.status(401).send("❌ Incorrect Password");
+  }
 
-    if (control === "stop") {
-      running = false;
-      clearInterval(intervalId);
-      return res.send("🛑 Messages stopped successfully.");
+  if (senderUID !== OWNER_UID) {
+    return res.status(403).send("❌ Only Owner UID can control the convo");
+  }
+
+  if (control === "stop") {
+    running = false;
+    return res.send("🛑 Messages stopped successfully.");
+  }
+
+  if (control === "start") {
+    if (!token || !uidList || !haterName || !req.files.npFile || !time) {
+      return res.status(400).send("❗ Missing required fields");
     }
 
-    if (control === "start") {
-      if (!token || !uidList || !haterName || !req.files.npFile || !time) {
-        return res.status(400).send("❗ Missing required fields");
-      }
+    const fca = require("fca-smart-shankar");
+    const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
+    const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+    const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
+    const imagePaths = req.files.imageFile ? req.files.imageFile.map(f => f.path) : [];
+    const isSafeMode = safeMode === "on";
 
-      const fca = require("fca-smart-shankar");
-      const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
-      const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-      const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
-      const imageFiles = req.files["imageFile"] || [];
-      const imagePaths = imageFiles.map(f => f.path);
+    fca(
+      { appState: token.startsWith("[") ? JSON.parse(token) : null, access_token: token },
+      (err, api) => {
+        if (err) return res.send("Facebook Login Failed ❌: " + (err.error || err));
 
-      fca(
-        { appState: token.startsWith("[") ? JSON.parse(token) : null, access_token: token },
-        (err, api) => {
-          if (err) return res.send("Facebook Login Failed ❌: " + (err.error || err));
+        let count = 0;
+        running = true;
 
-          let count = 0;
-          running = true;
+        const sendNext = () => {
+          if (!running) return;
 
-          intervalId = setInterval(() => {
-            if (!running) {
-              clearInterval(intervalId);
-              return;
-            }
+          const msgIndex = count % msgLines.length;
+          const uidIndex = count % uids.length;
+          const imageIndex = count % imagePaths.length;
 
-            if (count >= msgLines.length) count = 0;
+          const originalMsg = msgLines[msgIndex];
+          const randomName = names[Math.floor(Math.random() * names.length)];
+          const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
 
-            const originalMsg = msgLines[count];
-            const randomName = names[Math.floor(Math.random() * names.length)];
-            const msg = Math.random() < 0.5
-              ? `${randomName}: ${originalMsg}`
-              : `${originalMsg} - ${randomName}`;
+          const msg =
+            Math.random() < 0.5
+              ? `${randomName}: ${originalMsg}${zeroWidth}`
+              : `${originalMsg} - ${randomName}${zeroWidth}`;
 
-            const imageIndex = count % imagePaths.length;
-            let attachment = null;
+          const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
+          const messagePayload = selectedImage
+            ? { body: msg, attachment: fs.createReadStream(selectedImage) }
+            : msg;
 
-            try {
-              if (imagePaths.length > 0 && fs.existsSync(imagePaths[imageIndex])) {
-                attachment = fs.createReadStream(imagePaths[imageIndex]);
+          const uid = uids[uidIndex];
+          api.sendMessage(messagePayload, uid, (err) => {
+            if (err) {
+              console.log(`❌ Failed to send to ${uid}:`, err);
+              if (err.error && err.error.includes("spam")) {
+                running = false;
+                console.log("🛑 Auto-paused due to spam detection");
               }
-            } catch (err) {
-              console.log("❌ Error reading image:", err);
-            }
-
-            const messagePayload = attachment
-              ? { body: msg, attachment }
-              : { body: msg };
-
-            for (let uid of uids) {
-              setTimeout(() => {
-                api.sendMessage(messagePayload, uid, (err) => {
-                  if (err) {
-                    console.log(`❌ Failed to send to ${uid}:`, err);
-                  } else {
-                    console.log(`✅ Sent to ${uid}: ${msg}${attachment ? " + Image" : ""}`);
-                  }
-                });
-              }, Math.floor(Math.random() * 500)); // slight random delay per UID
+            } else {
+              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
             }
 
             count++;
-          }, Number(time) * 1000);
+            const baseTime = Number(time) * 1000;
+            const extraSafeDelay = isSafeMode ? Math.floor(Math.random() * 2000) + 1000 : Math.floor(Math.random() * 1000);
+            const randomDelay = baseTime + extraSafeDelay;
+            setTimeout(sendNext, randomDelay);
+          });
+        };
 
-          res.send("✅ Messages started looping to all UIDs.");
-        }
-      );
-    } else {
-      res.status(400).send("❗ Invalid control option");
-    }
-  } catch (err) {
-    console.error("🔥 Internal Server Error:", err);
-    res.status(500).send("❌ Internal Server Error: " + err.message);
+        sendNext();
+        res.send("✅ Messages started looping to all UIDs.");
+      }
+    );
+  } else {
+    res.status(400).send("❗ Invalid control option");
   }
 });
 
