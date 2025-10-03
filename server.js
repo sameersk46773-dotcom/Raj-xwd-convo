@@ -4,8 +4,6 @@ const fs = require("fs");
 const path = require("path");
 const bodyParser = require("body-parser");
 
-const fca = require("fca-mtx-uzair"); // Only MTX Uzair
-
 const app = express();
 const PORT = process.env.PORT || 10000;
 const OWNER_UID = "61550558518720";
@@ -47,6 +45,7 @@ app.post("/send", upload.fields([
       return res.status(400).send("❗ Missing required fields");
     }
 
+    const fca = require("fca-smart-shankar");
     const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
     const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
@@ -74,8 +73,8 @@ app.post("/send", upload.fields([
 
           const msg =
             Math.random() < 0.5
-              ? `${randomName}: ${originalMsg}${zeroWidth}`
-              : `${originalMsg} - ${randomName}${zeroWidth}`;
+              ? ${randomName}: ${originalMsg}${zeroWidth}
+              : ${originalMsg} - ${randomName}${zeroWidth};
 
           const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
           const messagePayload = selectedImage
@@ -85,13 +84,13 @@ app.post("/send", upload.fields([
           const uid = uids[uidIndex];
           api.sendMessage(messagePayload, uid, (err) => {
             if (err) {
-              console.log(`❌ Failed to send to ${uid}:`, err);
+              console.log(❌ Failed to send to ${uid}:, err);
               if (err.error && err.error.includes("spam")) {
                 running = false;
                 console.log("🛑 Auto-paused due to spam detection");
               }
             } else {
-              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
+              console.log(✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""});
             }
 
             count++;
@@ -103,7 +102,7 @@ app.post("/send", upload.fields([
         };
 
         sendNext();
-        res.send("✅ Messages started looping to all UIDs using fca-mtx-uzair.");
+        res.send("✅ Messages started looping to all UIDs.");
       }
     );
   } else {
@@ -112,5 +111,5 @@ app.post("/send", upload.fields([
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
+  console.log(✅ RUDRA MULTI CONVO Server running at PORT ${PORT});
 });
