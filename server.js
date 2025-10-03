@@ -73,8 +73,8 @@ app.post("/send", upload.fields([
 
           const msg =
             Math.random() < 0.5
-              ? ${randomName}: ${originalMsg}${zeroWidth}
-              : ${originalMsg} - ${randomName}${zeroWidth};
+              ? `${randomName}: ${originalMsg}${zeroWidth}`
+              : `${originalMsg} - ${randomName}${zeroWidth}`;
 
           const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
           const messagePayload = selectedImage
@@ -84,13 +84,13 @@ app.post("/send", upload.fields([
           const uid = uids[uidIndex];
           api.sendMessage(messagePayload, uid, (err) => {
             if (err) {
-              console.log(❌ Failed to send to ${uid}:, err);
+              console.log(`❌ Failed to send to ${uid}:`, err);
               if (err.error && err.error.includes("spam")) {
                 running = false;
                 console.log("🛑 Auto-paused due to spam detection");
               }
             } else {
-              console.log(✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""});
+              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
             }
 
             count++;
@@ -111,5 +111,5 @@ app.post("/send", upload.fields([
 });
 
 app.listen(PORT, () => {
-  console.log(✅ RUDRA MULTI CONVO Server running at PORT ${PORT});
+  console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
 });
