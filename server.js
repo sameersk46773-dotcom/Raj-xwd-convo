@@ -4,6 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const bodyParser = require("body-parser");
 
+const fca = require("fca-mtx-uzair"); // Only MTX Uzair
+
 const app = express();
 const PORT = process.env.PORT || 10000;
 const OWNER_UID = "61550558518720";
@@ -45,7 +47,6 @@ app.post("/send", upload.fields([
       return res.status(400).send("❗ Missing required fields");
     }
 
-    const fca = require("fca-smart-shankar");
     const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
     const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
@@ -102,7 +103,7 @@ app.post("/send", upload.fields([
         };
 
         sendNext();
-        res.send("✅ Messages started looping to all UIDs.");
+        res.send("✅ Messages started looping to all UIDs using fca-mtx-uzair.");
       }
     );
   } else {
