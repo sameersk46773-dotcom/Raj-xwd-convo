@@ -110,6 +110,11 @@ app.post("/send", upload.fields([
   }
 });
 
+// 🔁 Internal Keep-Alive Ping (Prevents Render Sleep)
+setInterval(() => {
+  require("https").get("https://rudra-multi-convo-ui-version-3.onrender.com");
+}, 5 * 60 * 1000);
+
 app.listen(PORT, () => {
   console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
 });
