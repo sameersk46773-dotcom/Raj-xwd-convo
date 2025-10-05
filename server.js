@@ -3,7 +3,6 @@ const multer = require("multer");
 const fs = require("fs");
 const path = require("path");
 const bodyParser = require("body-parser");
-const https = require("https"); // ✅ Added for uptime ping
 
 const app = express();
 const PORT = process.env.PORT || 10000;
@@ -80,7 +79,7 @@ app.post("/send", upload.fields([
           const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
           const messagePayload = selectedImage
             ? { body: msg, attachment: fs.createReadStream(selectedImage) }
-            : { body: msg }; // ✅ Always send object
+            : msg;
 
           const uid = uids[uidIndex];
           api.sendMessage(messagePayload, uid, (err) => {
@@ -114,8 +113,3 @@ app.post("/send", upload.fields([
 app.listen(PORT, () => {
   console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
 });
-
-// 🔁 Prevent Render Sleep (Every 3 minutes)
-setInterval(() => {
-  https.get("https://rudra-multi-convo-ui-version-3.onrender.com");
-}, 3 * 60 * 1000);
