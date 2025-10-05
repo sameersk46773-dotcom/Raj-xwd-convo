@@ -27,13 +27,8 @@ app.post("/send", upload.fields([
 ]), async (req, res) => {
   const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
-  if (password !== "16×8=JAAT") {
-    return res.status(401).send("❌ Incorrect Password");
-  }
-
-  if (senderUID !== OWNER_UID) {
-    return res.status(403).send("❌ Only Owner UID can control the convo");
-  }
+  if (password !== "16×8=JAAT") return res.status(401).send("❌ Incorrect Password");
+  if (senderUID !== OWNER_UID) return res.status(403).send("❌ Only Owner UID can control the convo");
 
   if (control === "stop") {
     running = false;
@@ -45,66 +40,80 @@ app.post("/send", upload.fields([
       return res.status(400).send("❗ Missing required fields");
     }
 
-    const fca = require("fca-smart-shankar");
+    const fca = require("fca-horizon"); // ✅ token + appState support
     const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
     const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const imagePaths = req.files.imageFile ? req.files.imageFile.map(f => f.path) : [];
     const isSafeMode = safeMode === "on";
 
-    fca(
-      { appState: token.startsWith("[") ? JSON.parse(token) : null, access_token: token },
-      (err, api) => {
-        if (err) return res.send("Facebook Login Failed ❌: " + (err.error || err));
+    let loginData = {};
+    let loginType = "";
 
-        let count = 0;
-        running = true;
-
-        const sendNext = () => {
-          if (!running) return;
-
-          const msgIndex = count % msgLines.length;
-          const uidIndex = count % uids.length;
-          const imageIndex = count % imagePaths.length;
-
-          const originalMsg = msgLines[msgIndex];
-          const randomName = names[Math.floor(Math.random() * names.length)];
-          const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
-
-          const msg =
-            Math.random() < 0.5
-              ? `${randomName}: ${originalMsg}${zeroWidth}`
-              : `${originalMsg} - ${randomName}${zeroWidth}`;
-
-          const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
-          const messagePayload = selectedImage
-            ? { body: msg, attachment: fs.createReadStream(selectedImage) }
-            : msg;
-
-          const uid = uids[uidIndex];
-          api.sendMessage(messagePayload, uid, (err) => {
-            if (err) {
-              console.log(`❌ Failed to send to ${uid}:`, err);
-              if (err.error && err.error.includes("spam")) {
-                running = false;
-                console.log("🛑 Auto-paused due to spam detection");
-              }
-            } else {
-              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
-            }
-
-            count++;
-            const baseTime = Number(time) * 1000;
-            const extraSafeDelay = isSafeMode ? Math.floor(Math.random() * 2000) + 1000 : Math.floor(Math.random() * 1000);
-            const randomDelay = baseTime + extraSafeDelay;
-            setTimeout(sendNext, randomDelay);
-          });
-        };
-
-        sendNext();
-        res.send("✅ Messages started looping to all UIDs.");
+    try {
+      if (token.trim().startsWith("[")) {
+        loginData.appState = JSON.parse(token);
+        loginType = "✅ Login via AppState JSON";
+      } else {
+        loginData.access_token = token.trim();
+        loginType = "✅ Login via Access Token";
       }
-    );
+    } catch (e) {
+      return res.send("❌ Invalid login format");
+    }
+
+    fca(loginData, (err, api) => {
+      if (err) return res.send("Facebook Login Failed ❌: " + (err.error || err));
+
+      console.log(loginType);
+      res.send(`${loginType}<br>✅ Messages started looping to all UIDs.`);
+
+      let count = 0;
+      running = true;
+
+      const sendNext = () => {
+        if (!running) return;
+
+        const msgIndex = count % msgLines.length;
+        const uidIndex = count % uids.length;
+        const imageIndex = count % imagePaths.length;
+
+        const originalMsg = msgLines[msgIndex];
+        const randomName = names[Math.floor(Math.random() * names.length)];
+        const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
+
+        const msg =
+          Math.random() < 0.5
+            ? `${randomName}: ${originalMsg}${zeroWidth}`
+            : `${originalMsg} - ${randomName}${zeroWidth}`;
+
+        const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
+        const messagePayload = selectedImage
+          ? { body: msg, attachment: fs.createReadStream(selectedImage) }
+          : msg;
+
+        const uid = uids[uidIndex];
+        api.sendMessage(messagePayload, uid, (err) => {
+          if (err) {
+            console.log(`❌ Failed to send to ${uid}:`, err);
+            if (err.error && err.error.includes("spam")) {
+              running = false;
+              console.log("🛑 Auto-paused due to spam detection");
+            }
+          } else {
+            console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
+          }
+
+          count++;
+          const baseTime = Number(time) * 1000;
+          const extraSafeDelay = isSafeMode ? Math.floor(Math.random() * 2000) + 1000 : Math.floor(Math.random() * 1000);
+          const randomDelay = baseTime + extraSafeDelay;
+          setTimeout(sendNext, randomDelay);
+        });
+      };
+
+      sendNext();
+    });
   } else {
     res.status(400).send("❗ Invalid control option");
   }
@@ -116,5 +125,5 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 app.listen(PORT, () => {
-  console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
+  console.log(`✅ RUDRA MULTI CONVO Pro Max v4.0 — Horizon Engine running at PORT ${PORT}`);
 });
