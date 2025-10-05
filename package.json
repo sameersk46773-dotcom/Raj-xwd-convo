@@ -12,6 +12,7 @@
     "body-parser": "latest",
     "fca-unofficial": "latest",
     "fca-smart-shankar": "^13.0.0",
-    "fca-mtx-uzair": "^19.0.0"
+    "fca-mtx-uzair": "^19.0.0",
+    "fca-horizon": "latest"
   }
 }
