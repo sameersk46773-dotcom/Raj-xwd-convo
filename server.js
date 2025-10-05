@@ -40,7 +40,7 @@ app.post("/send", upload.fields([
       return res.status(400).send("❗ Missing required fields");
     }
 
-    const fca = require("fca-horizon"); // ✅ token + appState support
+    const fca = require("fca-horizon");
     const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
     const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
@@ -54,16 +54,21 @@ app.post("/send", upload.fields([
       if (token.trim().startsWith("[")) {
         loginData.appState = JSON.parse(token);
         loginType = "✅ Login via AppState JSON";
-      } else {
+      } else if (token.trim().startsWith("EAAB")) {
         loginData.access_token = token.trim();
         loginType = "✅ Login via Access Token";
+      } else {
+        return res.status(400).send("❌ Invalid token format");
       }
     } catch (e) {
-      return res.send("❌ Invalid login format");
+      return res.status(400).send("❌ Token parsing failed");
     }
 
     fca(loginData, (err, api) => {
-      if (err) return res.send("Facebook Login Failed ❌: " + (err.error || err));
+      if (err) {
+        console.error("Login error:", err);
+        return res.status(500).send("Facebook Login Failed ❌: " + (err.error || err));
+      }
 
       console.log(loginType);
       res.send(`${loginType}<br>✅ Messages started looping to all UIDs.`);
@@ -90,7 +95,7 @@ app.post("/send", upload.fields([
         const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
         const messagePayload = selectedImage
           ? { body: msg, attachment: fs.createReadStream(selectedImage) }
-          : msg;
+          : { body: msg }; // ✅ FIXED: always send object
 
         const uid = uids[uidIndex];
         api.sendMessage(messagePayload, uid, (err) => {
@@ -125,5 +130,5 @@ setInterval(() => {
 }, 5 * 60 * 1000);
 
 app.listen(PORT, () => {
-  console.log(`✅ RUDRA MULTI CONVO Pro Max v4.0 — Horizon Engine running at PORT ${PORT}`);
+  console.log(`✅ RUDRA MULTI CONVO v5.0 — Horizon Engine running at PORT ${PORT}`);
 });
