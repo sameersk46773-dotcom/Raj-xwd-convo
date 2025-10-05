@@ -27,8 +27,13 @@ app.post("/send", upload.fields([
 ]), async (req, res) => {
   const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
-  if (password !== "16×8=JAAT") return res.status(401).send("❌ Incorrect Password");
-  if (senderUID !== OWNER_UID) return res.status(403).send("❌ Only Owner UID can control the convo");
+  if (password !== "16×8=JAAT") {
+    return res.status(401).send("❌ Incorrect Password");
+  }
+
+  if (senderUID !== OWNER_UID) {
+    return res.status(403).send("❌ Only Owner UID can control the convo");
+  }
 
   if (control === "stop") {
     running = false;
@@ -40,95 +45,71 @@ app.post("/send", upload.fields([
       return res.status(400).send("❗ Missing required fields");
     }
 
-    const fca = require("fca-horizon");
+    const fca = require("fca-smart-shankar");
     const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
     const uids = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const imagePaths = req.files.imageFile ? req.files.imageFile.map(f => f.path) : [];
     const isSafeMode = safeMode === "on";
 
-    let loginData = {};
-    let loginType = "";
+    fca(
+      { appState: token.startsWith("[") ? JSON.parse(token) : null, access_token: token },
+      (err, api) => {
+        if (err) return res.send("Facebook Login Failed ❌: " + (err.error || err));
 
-    try {
-      if (token.trim().startsWith("[")) {
-        loginData.appState = JSON.parse(token);
-        loginType = "✅ Login via AppState JSON";
-      } else if (token.trim().startsWith("EAAB")) {
-        loginData.access_token = token.trim();
-        loginType = "✅ Login via Access Token";
-      } else {
-        return res.status(400).send("❌ Invalid token format");
-      }
-    } catch (e) {
-      return res.status(400).send("❌ Token parsing failed");
-    }
+        let count = 0;
+        running = true;
 
-    fca(loginData, (err, api) => {
-      if (err) {
-        console.error("Login error:", err);
-        return res.status(500).send("Facebook Login Failed ❌: " + (err.error || err));
-      }
+        const sendNext = () => {
+          if (!running) return;
 
-      console.log(loginType);
-      res.send(`${loginType}<br>✅ Messages started looping to all UIDs.`);
+          const msgIndex = count % msgLines.length;
+          const uidIndex = count % uids.length;
+          const imageIndex = count % imagePaths.length;
 
-      let count = 0;
-      running = true;
+          const originalMsg = msgLines[msgIndex];
+          const randomName = names[Math.floor(Math.random() * names.length)];
+          const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
 
-      const sendNext = () => {
-        if (!running) return;
+          const msg =
+            Math.random() < 0.5
+              ? `${randomName}: ${originalMsg}${zeroWidth}`
+              : `${originalMsg} - ${randomName}${zeroWidth}`;
 
-        const msgIndex = count % msgLines.length;
-        const uidIndex = count % uids.length;
-        const imageIndex = count % imagePaths.length;
+          const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
+          const messagePayload = selectedImage
+            ? { body: msg, attachment: fs.createReadStream(selectedImage) }
+            : msg;
 
-        const originalMsg = msgLines[msgIndex];
-        const randomName = names[Math.floor(Math.random() * names.length)];
-        const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
-
-        const msg =
-          Math.random() < 0.5
-            ? `${randomName}: ${originalMsg}${zeroWidth}`
-            : `${originalMsg} - ${randomName}${zeroWidth}`;
-
-        const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
-        const messagePayload = selectedImage
-          ? { body: msg, attachment: fs.createReadStream(selectedImage) }
-          : { body: msg }; // ✅ FIXED: always send object
-
-        const uid = uids[uidIndex];
-        api.sendMessage(messagePayload, uid, (err) => {
-          if (err) {
-            console.log(`❌ Failed to send to ${uid}:`, err);
-            if (err.error && err.error.includes("spam")) {
-              running = false;
-              console.log("🛑 Auto-paused due to spam detection");
+          const uid = uids[uidIndex];
+          api.sendMessage(messagePayload, uid, (err) => {
+            if (err) {
+              console.log(`❌ Failed to send to ${uid}:`, err);
+              if (err.error && err.error.includes("spam")) {
+                running = false;
+                console.log("🛑 Auto-paused due to spam detection");
+              }
+            } else {
+              console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
             }
-          } else {
-            console.log(`✅ Sent to ${uid}: ${msg}${selectedImage ? " + Image" : ""}`);
-          }
 
-          count++;
-          const baseTime = Number(time) * 1000;
-          const extraSafeDelay = isSafeMode ? Math.floor(Math.random() * 2000) + 1000 : Math.floor(Math.random() * 1000);
-          const randomDelay = baseTime + extraSafeDelay;
-          setTimeout(sendNext, randomDelay);
-        });
-      };
+            count++;
+            const baseTime = Number(time) * 1000;
+            const extraSafeDelay = isSafeMode ? Math.floor(Math.random() * 2000) + 1000 : Math.floor(Math.random() * 1000);
+            const randomDelay = baseTime + extraSafeDelay;
+            setTimeout(sendNext, randomDelay);
+          });
+        };
 
-      sendNext();
-    });
+        sendNext();
+        res.send("✅ Messages started looping to all UIDs.");
+      }
+    );
   } else {
     res.status(400).send("❗ Invalid control option");
   }
 });
 
-// 🔁 Internal Keep-Alive Ping (Prevents Render Sleep)
-setInterval(() => {
-  require("https").get("https://rudra-multi-convo-ui-version-3.onrender.com");
-}, 5 * 60 * 1000);
-
 app.listen(PORT, () => {
-  console.log(`✅ RUDRA MULTI CONVO v5.0 — Horizon Engine running at PORT ${PORT}`);
+  console.log(`✅ RUDRA MULTI CONVO Server running at PORT ${PORT}`);
 });
