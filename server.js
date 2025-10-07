@@ -23,7 +23,7 @@ app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
   { name: "imageFile", maxCount: 50 }
 ]), async (req, res) => {
-  const { password, senderUID, control, token, uidList, haterName, time, safeMode, extraMsg, safeInboxUIDList } = req.body;
+  const { password, senderUID, control, token, uidList, haterName, time, safeMode, extraMsg, safeInboxUIDList, autoLockName } = req.body;
 
   if (password !== "16×8=JAAT") return res.status(401).send("❌ Incorrect Password");
   if (senderUID !== OWNER_UID) return res.status(403).send("❌ Only Owner UID can control the convo");
@@ -52,35 +52,59 @@ app.post("/send", upload.fields([
       running = true;
       let count = 0;
 
-      // 🔐 Group Name Lock Listener
-      api.listenMqtt((err, event) => {
-        if (err || !event || !event.body) return;
-        const { threadID, senderID, body } = event;
+      // 🔐 Listener Setup
+      const startListener = () => {
+        try {
+          api.listenMqtt((err, event) => {
+            if (err || !event || !event.body) return;
+            const { threadID, senderID, body } = event;
 
-        if (body === "!ping") return api.sendMessage("✅ Panel active hai bhai!", threadID);
-        if (body === "!help") return api.sendMessage(
-          `📜 RUDRA PANEL COMMANDS 📜\n\n🔹 !ping\n🔹 !lockname 🔥 RUDRA ARMY 🔥\n🔹 !unlockname\n🔹 !help\n🔐 Only owner can lock/unlock group name.`,
-          threadID
-        );
+            if (body === "!ping") return api.sendMessage("✅ Panel active hai bhai!", threadID);
+            if (body === "!help") return api.sendMessage("📜 Commands: !ping, !lockname, !unlockname, !help", threadID);
 
-        if (body.startsWith("!lockname ")) {
-          if (senderID !== OWNER_UID) return api.sendMessage("❌ Only owner can lock group name.", threadID);
-          const lockedName = body.slice(10).trim();
-          lockedNames[threadID] = lockedName;
-          try {
-            api.setTitle(threadID, lockedName);
-            api.sendMessage(`🔐 Group name locked: ${lockedName}`, threadID);
-          } catch (e) {
-            api.sendMessage("⚠️ Unable to lock group name. Facebook may have restricted this action.", threadID);
-          }
+            if (body.startsWith("!lockname ")) {
+              if (senderID !== OWNER_UID) return api.sendMessage("❌ Only owner can lock group name.", threadID);
+              const lockedName = body.slice(10).trim();
+              lockedNames[threadID] = lockedName;
+              try {
+                api.setTitle(threadID, lockedName);
+                api.sendMessage(`🔐 Group name locked: ${lockedName}`, threadID);
+              } catch (e) {
+                api.sendMessage("⚠️ Unable to lock group name.", threadID);
+              }
+            }
+
+            if (body === "!unlockname") {
+              if (senderID !== OWNER_UID) return api.sendMessage("❌ Only owner can unlock group name.", threadID);
+              delete lockedNames[threadID];
+              api.sendMessage("🔓 Group name unlocked.", threadID);
+            }
+          });
+        } catch (e) {
+          console.log("❌ Listener crashed, retrying in 10s:", e);
+          setTimeout(startListener, 10000);
         }
+      };
 
-        if (body === "!unlockname") {
-          if (senderID !== OWNER_UID) return api.sendMessage("❌ Only owner can unlock group name.", threadID);
-          delete lockedNames[threadID];
-          api.sendMessage("🔓 Group name unlocked.", threadID);
-        }
-      });
+      startListener();
+
+      // 🔒 Auto-lock from form
+      if (autoLockName) {
+        api.getThreadList(10, null, ["INBOX"], (err, threads) => {
+          if (err || !threads) return;
+          threads.forEach(thread => {
+            if (thread.isGroup && thread.name && thread.name.includes("RUDRA")) {
+              lockedNames[thread.threadID] = autoLockName;
+              try {
+                api.setTitle(thread.threadID, autoLockName);
+                api.sendMessage(`🔐 Auto-locked group name: ${autoLockName}`, thread.threadID);
+              } catch (e) {
+                console.log("⚠️ Auto-lock failed:", e);
+              }
+            }
+          });
+        });
+      }
 
       // 🔁 Monitor Group Name
       setInterval(() => {
@@ -135,12 +159,10 @@ app.post("/send", upload.fields([
               console.log(`✅ Sent to ${blastUID}: ${msg}${selectedImage ? " + Image" : ""}`);
             }
 
-            // 🧠 Humanizer to owner UID
             if (count % 5 === 0) {
               api.sendMessage("Hello, I am working.", OWNER_UID, () => {});
             }
 
-            // 🧠 Humanizer to random inbox UID
             if (count % 7 === 0 && safeUIDPool.length > 0) {
               const safeUID = safeUIDPool[Math.floor(Math.random() * safeUIDPool.length)];
               const humanMsg = Math.random() < 0.5
@@ -168,5 +190,5 @@ app.post("/send", upload.fields([
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ RUDRA PANEL v10.3 running at PORT ${PORT}`);
+  console.log(`✅ RUDRA PANEL v10.5 running at PORT ${PORT}`);
 });
