@@ -61,6 +61,12 @@ app.post("/send", upload.fields([
           if (err || !event || !event.body) return;
           const { threadID, senderID, body } = event;
 
+          console.log("📩 Received message:", { threadID, senderID, body });
+
+          if (body === "!ping") {
+            return api.sendMessage("✅ Panel active hai bhai!", threadID);
+          }
+
           if (body.startsWith("!lockname ")) {
             if (senderID !== OWNER_UID) {
               return api.sendMessage("❌ Only owner can lock group name.", threadID);
