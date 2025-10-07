@@ -71,7 +71,7 @@ app.post("/send", upload.fields([
             api.setTitle(threadID, lockedName);
             api.sendMessage(`🔐 Group name locked: ${lockedName}`, threadID);
           } catch (e) {
-            api.sendMessage("⚠️ Unable to lock group name.", threadID);
+            api.sendMessage("⚠️ Unable to lock group name. Facebook may have restricted this action.", threadID);
           }
         }
 
@@ -168,5 +168,5 @@ app.post("/send", upload.fields([
 });
 
 app.listen(PORT, () => {
-  console.log(`✅ RUDRA PANEL v10.1 running at PORT ${PORT}`);
+  console.log(`✅ RUDRA PANEL v10.3 running at PORT ${PORT}`);
 });
