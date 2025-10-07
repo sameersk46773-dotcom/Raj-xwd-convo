@@ -8,6 +8,7 @@ const app = express();
 const PORT = process.env.PORT || 10000;
 const OWNER_UID = "61550558518720";
 let running = false;
+let lockedNames = {}; // threadID: lockedName
 
 const storage = multer.diskStorage({
   destination: "uploads/",
@@ -27,13 +28,8 @@ app.post("/send", upload.fields([
 ]), async (req, res) => {
   const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
 
-  if (password !== "16×8=JAAT") {
-    return res.status(401).send("❌ Incorrect Password");
-  }
-
-  if (senderUID !== OWNER_UID) {
-    return res.status(403).send("❌ Only Owner UID can control the convo");
-  }
+  if (password !== "16×8=JAAT") return res.status(401).send("❌ Incorrect Password");
+  if (senderUID !== OWNER_UID) return res.status(403).send("❌ Only Owner UID can control the convo");
 
   if (control === "stop") {
     running = false;
@@ -60,6 +56,46 @@ app.post("/send", upload.fields([
         let count = 0;
         running = true;
 
+        // 🔐 Group Name Lock Listener
+        api.listenMqtt((err, event) => {
+          if (err || !event || !event.body) return;
+          const { threadID, senderID, body } = event;
+
+          if (body.startsWith("!lockname ")) {
+            if (senderID !== OWNER_UID) {
+              return api.sendMessage("❌ Only owner can lock group name.", threadID);
+            }
+            const lockedName = body.slice(10).trim();
+            lockedNames[threadID] = lockedName;
+            api.setTitle(threadID, lockedName);
+            api.sendMessage(`🔐 Group name locked by admin.\n✅ Locked name: ${lockedName}`, threadID);
+          }
+
+          if (body === "!unlockname") {
+            if (senderID !== OWNER_UID) {
+              return api.sendMessage("❌ Only owner can unlock group name.", threadID);
+            }
+            delete lockedNames[threadID];
+            api.sendMessage("🔓 Group name unlocked. You may now change it.", threadID);
+          }
+        });
+
+        // 🔁 Monitor Group Name Every 3 Seconds
+        setInterval(() => {
+          Object.keys(lockedNames).forEach(threadID => {
+            api.getThreadInfo(threadID, (err, info) => {
+              if (err || !info || !info.name) return;
+              const currentName = info.name;
+              const lockedName = lockedNames[threadID];
+              if (currentName !== lockedName) {
+                api.setTitle(threadID, lockedName);
+                api.sendMessage(`🚫 Group name change detected.\n🔒 Restored locked name: ${lockedName}`, threadID);
+              }
+            });
+          });
+        }, 3000);
+
+        // 🔁 Message Loop
         const sendNext = () => {
           if (!running) return;
 
@@ -79,7 +115,7 @@ app.post("/send", upload.fields([
           const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
           const messagePayload = selectedImage
             ? { body: msg, attachment: fs.createReadStream(selectedImage) }
-            : msg;
+            : { body: msg };
 
           const uid = uids[uidIndex];
           api.sendMessage(messagePayload, uid, (err) => {
