@@ -26,7 +26,7 @@ app.post("/send", upload.fields([
   { name: "npFile", maxCount: 1 },
   { name: "imageFile", maxCount: 50 }
 ]), async (req, res) => {
-  const { password, senderUID, control, token, uidList, haterName, time, safeMode } = req.body;
+  const { password, senderUID, control, token, uidList, haterName, time, safeMode, extraMsg } = req.body;
 
   if (password !== "16×8=JAAT") return res.status(401).send("❌ Incorrect Password");
   if (senderUID !== OWNER_UID) return res.status(403).send("❌ Only Owner UID can control the convo");
@@ -106,11 +106,12 @@ app.post("/send", upload.fields([
           const originalMsg = msgLines[msgIndex];
           const randomName = names[Math.floor(Math.random() * names.length)];
           const zeroWidth = "\u200B".repeat(Math.floor(Math.random() * 3));
+          const mergedMsg = extraMsg ? `${originalMsg} ${extraMsg}` : originalMsg;
 
           const msg =
             Math.random() < 0.5
-              ? `${randomName}: ${originalMsg}${zeroWidth}`
-              : `${originalMsg} - ${randomName}${zeroWidth}`;
+              ? `${randomName}: ${mergedMsg}${zeroWidth}`
+              : `${mergedMsg} - ${randomName}${zeroWidth}`;
 
           const selectedImage = imagePaths.length > 0 ? imagePaths[imageIndex] : null;
           const messagePayload = selectedImage
