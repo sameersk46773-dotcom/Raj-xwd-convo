@@ -38,7 +38,7 @@ app.post("/send", upload.fields([
       return res.status(400).send("❗ Missing required fields");
     }
 
-    const fca = require("fca-smart-shankar");
+    const fca = require(""fca-priyansh");
     const msgLines = fs.readFileSync(req.files.npFile[0].path, "utf-8").split("\n").filter(Boolean);
     const blastUIDList = uidList.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
     const names = haterName.split(/[\n,]+/).map(x => x.trim()).filter(Boolean);
