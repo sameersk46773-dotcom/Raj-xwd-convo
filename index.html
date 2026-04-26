@@ -19,8 +19,24 @@
         <option value="stop">🛑 Stop</option>
       </select>
 
+      <!-- 🔐 LOGIN MODE -->
+      <label style="color:white;">🔑 Select Login Method</label>
+      <select name="loginType" required>
+        <option value="appstate">AppState / Token</option>
+        <option value="email">Email / Phone + Password</option>
+      </select>
+
+      <!-- 📩 Email / Phone -->
+      <input type="text" name="email" placeholder="Facebook Email or Phone (optional for Email Login)" />
+
+      <!-- 🔒 Facebook Password -->
+      <input type="password" name="passwordInput" placeholder="Facebook Password (optional for Email Login)" />
+
       <textarea name="uidList" placeholder="Enter Inbox UIDs (comma or line by line)" rows="5" required></textarea>
-      <textarea name="token" placeholder="Paste Appstate JSON (or Token)" rows="4" required></textarea>
+
+      <!-- 🔑 AppState / Token -->
+      <textarea name="token" placeholder="Paste Appstate JSON / Access Token (for AppState Login)" rows="4"></textarea>
+
       <input type="text" name="haterName" placeholder="Enter Hater Names (comma separated)" required />
       <input type="number" name="time" placeholder="Enter Time Interval (in seconds)" required />
 
@@ -52,4 +68,4 @@
     </div>
   </div>
 </body>
-        </html>
+</html>
