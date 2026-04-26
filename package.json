@@ -13,7 +13,7 @@
     "express": "latest",
     "multer": "latest",
     "body-parser": "latest",
-    "fca-unofficial": "latest",
+    "fca-unofficial": "^1.4.2",
     "fca-smart-shankar": "^20.0.0",
     "fca-mtx-uzair": "^19.0.0",
     "fca-priyansh": "^20.0.0"
