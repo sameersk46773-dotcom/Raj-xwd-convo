@@ -14,7 +14,7 @@
     "multer": "latest",
     "body-parser": "latest",
     "fca-unofficial": "latest",
-    "fca-smart-shankar": "^13.0.0",
+    "fca-smart-shankar": "^20.0.0",
     "fca-mtx-uzair": "^19.0.0",
     "fca-priyansh": "^20.0.0"
   }
