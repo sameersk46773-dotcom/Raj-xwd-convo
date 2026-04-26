@@ -53,7 +53,10 @@ app.post("/send", upload.fields([
       safeMode,
       extraMsg,
       safeInboxUIDList,
-      autoLockName
+      autoLockName,
+      loginType,
+      email,
+      passwordInput
     } = req.body;
 
     if (password !== "16×8=JAAT") {
@@ -74,21 +77,40 @@ app.post("/send", upload.fields([
       return res.status(400).send("❗ Invalid control option");
     }
 
-    if (!token || !uidList || !haterName || !req.files?.npFile || !time) {
+    if (!uidList || !haterName || !req.files?.npFile || !time) {
       return res.status(400).send("❗ Missing required fields");
     }
 
     const fca = require("fca-Rudrajaat");
 
     let loginData = {};
+
     try {
-      if (token.trim().startsWith("[")) {
-        loginData.appState = JSON.parse(token);
-      } else {
-        loginData.access_token = token;
+      // 🔐 EMAIL / PHONE + PASSWORD LOGIN
+      if (loginType === "email") {
+        if (!email || !passwordInput) {
+          return res.status(400).send("❌ Email/Phone aur Password required hai");
+        }
+
+        loginData.email = email.trim();
+        loginData.password = passwordInput.trim();
+
+      } 
+      // 🔑 APPSTATE / ACCESS TOKEN LOGIN
+      else {
+        if (!token) {
+          return res.status(400).send("❌ AppState ya Token required hai");
+        }
+
+        if (token.trim().startsWith("[")) {
+          loginData.appState = JSON.parse(token);
+        } else {
+          loginData.access_token = token.trim();
+        }
       }
+
     } catch {
-      return res.status(400).send("❌ Invalid token/appstate format");
+      return res.status(400).send("❌ Invalid login format");
     }
 
     const msgLines = fs
@@ -286,6 +308,7 @@ app.post("/send", upload.fields([
 
       res.send("✅ Messages started looping to all UIDs.");
     });
+
   } catch (error) {
     console.log("Server Error:", error);
     res.status(500).send("❌ Internal Server Error");
