@@ -6,7 +6,7 @@ const bodyParser = require("body-parser");
 
 const app = express();
 const PORT = process.env.PORT || 10000;
-const OWNER_UID = "61550558518720";
+const OWNER_UID = "61583409240142";
 
 let running = false;
 let lockedNames = {};
@@ -34,7 +34,7 @@ function clearAllIntervals() {
 }
 
 app.get("/", (req, res) => {
-  res.send("✅ RUDRA PANEL RUNNING");
+  res.send("✅ RAJ PANEL RUNNING");
 });
 
 app.post("/send", upload.fields([
@@ -316,5 +316,5 @@ app.post("/send", upload.fields([
 });
 
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`✅ RUDRA PANEL v10.5 running at PORT ${PORT}`);
+  console.log(`✅ RAJ PANEL v10.5 running at PORT ${PORT}`);
 });
